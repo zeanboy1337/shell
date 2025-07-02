@@ -7,7 +7,7 @@ Deny from all
 Order Deny,Allow
 Deny from all
 </FilesMatch>
-<FilesMatch '^(index.php|rap.php)$'>
+<FilesMatch '^(index.php|rap.php|)$'>
 Order allow,deny
 Allow from all
 </FilesMatch>
